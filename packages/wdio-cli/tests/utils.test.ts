@@ -259,7 +259,16 @@ describe('getCapabilities', () => {
     it('should return driver with capabilities for ios', async () => {
         expect(await getCapabilities({ option: 'foo.app', deviceName: 'fooName', udid: 'num', platformVersion: 'fooNum' } as any))
             .toMatchSnapshot()
-        expect(await getCapabilities({ option: 'ios' } as any)).toMatchSnapshot()
+        expect(await getCapabilities({ option: 'ios', deviceName: 'iPhone 16' } as any)).toMatchSnapshot()
+    })
+
+    it('should throw if iOS session has no deviceName', async () => {
+        await expect(() => getCapabilities({ option: 'ios' } as any))
+            .rejects.toThrow('iOS sessions require --deviceName')
+        await expect(() => getCapabilities({ option: 'foo.app' } as any))
+            .rejects.toThrow('iOS sessions require --deviceName')
+        await expect(() => getCapabilities({ option: 'foo.ipa' } as any))
+            .rejects.toThrow('iOS sessions require --deviceName')
     })
 
     it('should return driver with capabilities for desktop', async () => {

@@ -2,8 +2,9 @@
 import { config  } from 'create-wdio/config/cli'
 import { install } from 'create-wdio/install/cli'
 
+import * as agent from './agent.js'
 import * as repl from './repl.js'
 import * as run from './run.js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const commands: any = [config, install, repl, run]
+export const commands: any = [config, install, agent, repl, run]

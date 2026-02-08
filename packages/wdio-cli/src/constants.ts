@@ -8,18 +8,17 @@ const pkgJSON = require('../package.json')
 export const pkg = pkgJSON
 export const CLI_EPILOGUE = `Documentation: https://webdriver.io\n@wdio/cli (v${pkg.version})`
 
-export const SUPPORTED_COMMANDS = ['run', 'install', 'config', 'repl']
+export const SUPPORTED_COMMANDS = ['run', 'install', 'config', 'repl', 'agent']
 
 export const ANDROID_CONFIG = {
     platformName: 'Android',
-    automationName: 'UiAutomator2',
-    deviceName: 'Test'
+    'appium:automationName': 'UiAutomator2',
+    'appium:deviceName': 'Test'
 }
 
 export const IOS_CONFIG = {
     platformName: 'iOS',
-    automationName: 'XCUITest',
-    deviceName: 'iPhone Simulator'
+    'appium:automationName': 'XCUITest',
 }
 const SUPPORTED_SNAPSHOTSTATE_OPTIONS = ['all', 'new', 'none'] as const
 

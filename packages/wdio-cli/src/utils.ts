@@ -153,18 +153,26 @@ export function findInConfig(config: string, type: string) {
 
 export async function getCapabilities(arg: ReplCommandArguments) {
     const optionalCapabilites = {
-        platformVersion: arg.platformVersion,
-        udid: arg.udid,
-        ...(arg.deviceName && { deviceName: arg.deviceName })
+        'appium:platformVersion': arg.platformVersion,
+        'appium:udid': arg.udid,
+        ...(arg.deviceName && { 'appium:deviceName': arg.deviceName })
     }
     /**
      * Parsing of option property and constructing desiredCapabilities
      * for Appium session. Could be application(1) or browser(2-3) session.
      */
+    const isIOS = /ios/.test(arg.option) || /\.(app|ipa)$/.test(arg.option)
+    if (isIOS && !arg.deviceName) {
+        throw new Error(
+            'iOS sessions require --deviceName (e.g. --deviceName "iPhone 16"). ' +
+            'Run `xcrun simctl list devices available` to see installed simulators.'
+        )
+    }
+
     if (/.*\.(apk|app|ipa)$/.test(arg.option)) {
         return {
             capabilities: {
-                app: arg.option,
+                'appium:app': arg.option,
                 ...(arg.option.endsWith('apk') ? ANDROID_CONFIG : IOS_CONFIG),
                 ...optionalCapabilites,
             }

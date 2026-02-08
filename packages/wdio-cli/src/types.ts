@@ -43,6 +43,18 @@ export interface ReplCommandArguments {
     capabilities: string
 }
 
+export interface AgentCommandArguments extends ReplCommandArguments {
+    provider: 'ollama' | 'anthropic' | 'openai'
+    model: string
+    token: string
+    providerUrl: string
+    maxSteps: number
+    maxActions: number
+    timeout: number
+    toonFormat: 'yaml-like' | 'tabular'
+    contextWindow: number
+}
+
 export interface InstallCommandArguments {
     config?: string
     type: 'service' | 'reporter' | 'framework' | 'plugin'
