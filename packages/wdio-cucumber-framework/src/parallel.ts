@@ -163,16 +163,10 @@ async function preallocateContexts(
     browser: WebdriverIO.Browser,
     count: number
 ): Promise<string[]> {
-    const bidi = browser as ParallelBrowser
-    if (typeof bidi.browsingContextCreate !== 'function') {
-        throw new Error(
-            'browsingContextCreate is not available on the browser instance. ' +
-            'Ensure the browser session supports WebDriver Bidi.'
-        )
-    }
+    const bidi = browser as unknown as { browsingContextCreate(params: { type: string }): Promise<{ context: string }> }
     const contexts = await Promise.all(
         Array.from({ length: count }, () =>
-            bidi.browsingContextCreate!({ type: 'tab' })
+            bidi.browsingContextCreate({ type: 'tab' })
         )
     )
     return contexts.map((c: { context: string }) => c.context)
@@ -404,7 +398,7 @@ async function runBatch(
         browser, reporter, cid, specs, cucumberOpts,
         supportCodeLibrary, runtimeOptions, assembledTestCases, parallelStore,
     } = params
-    const bidi = browser as ParallelBrowser
+    const bidi = browser as unknown as { browsingContextClose(params: { context: string }): Promise<unknown> }
 
     return Promise.allSettled(
         batch.map(async ({ pickle, group, index, contextId }) => {
@@ -451,14 +445,12 @@ async function runBatch(
 
                 return { status, name: pickle.name, duration }
             }).finally(async () => {
-                if (typeof bidi.browsingContextClose === 'function') {
-                    await bidi.browsingContextClose({ context: contextId })
-                        .catch((err) => {
-                            log.debug(
-                                `Cleanup error closing context ${contextId}: ${(err as Error).message}`
-                            )
-                        })
-                }
+                await bidi.browsingContextClose({ context: contextId })
+                    .catch((err) => {
+                        log.debug(
+                            `Cleanup error closing context ${contextId}: ${(err as Error).message}`
+                        )
+                    })
             })
         })
     )

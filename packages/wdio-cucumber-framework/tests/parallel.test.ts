@@ -297,26 +297,6 @@ describe('runParallelCucumber', () => {
         ).rejects.toThrow('Parallel context store not found')
     })
 
-    test('throws when browsingContextCreate is not available', async () => {
-        const browser = mockBrowser()
-        delete (browser as Record<string, unknown>).browsingContextCreate
-
-        const doc = makeFeatureDoc('/test/foo.feature', 'Test', ['scenario a'])
-
-        await expect(
-            runParallelCucumber({
-                browser: browser as unknown as WebdriverIO.Browser,
-                reporter,
-                eventEmitter,
-                cid: '0-0',
-                specs: ['/test/foo.feature'],
-                gherkinDocuments: [doc],
-                supportCodeLibrary: mockSupportCodeLibrary(),
-                cucumberOpts: defaultCucumberOpts(),
-            })
-        ).rejects.toThrow('browsingContextCreate is not available')
-    })
-
     test('skips pickles with no assembled test case', async () => {
         const browser = mockBrowser({ contexts: ['ctx-0'] })
         const doc = makeFeatureDoc('/test/foo.feature', 'Test', ['scenario a'])

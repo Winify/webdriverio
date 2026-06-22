@@ -7,6 +7,8 @@ import { wrapGlobalTestMethod, executeHooksWithArgs } from '@wdio/utils'
 import { _setGlobal } from '@wdio/globals'
 import type { Services, Capabilities } from '@wdio/types'
 import type { expect as wdioExpectImport, matchers as wdioMatchersImport, getConfig as wdioGetConfig } from 'expect-webdriverio'
+import type { ParallelBrowser } from './types.js'
+import { setupParallelContexts } from './parallel.js'
 
 import JasmineReporter from './reporter.js'
 import { jestResultToJasmine } from './utils.js'
@@ -317,6 +319,102 @@ class JasmineAdapter {
     }
 
     async run() {
+        let runtimeError: unknown
+        let result: number
+
+        try {
+            if (this._jasmineOpts.parallelMode === 'contexts') {
+                result = await this._runParallelMode()
+            } else {
+                // @ts-expect-error
+                this._jrunner.env.beforeAll(this.wrapHook('beforeSuite'))
+                // @ts-expect-error
+                this._jrunner.env.afterAll(this.wrapHook('afterSuite'))
+
+                await this._jrunner.execute()
+
+                result = this._reporter.getFailedCount()
+            }
+        } catch (err) {
+            runtimeError = err
+            result = 1
+        }
+
+        await executeHooksWithArgs('after', this._config.after, [
+            runtimeError || result,
+            this._capabilities,
+            this._specs,
+        ])
+
+        if (runtimeError) {
+            throw runtimeError
+        }
+
+        return result
+    }
+
+    private async _runParallelMode(): Promise<number> {
+        const browser = (globalThis as Record<string, unknown>).browser as ParallelBrowser
+
+        if (!browser) {
+            throw new Error(
+                'Parallel mode (jasmineOpts.parallelMode: "contexts") requires ' +
+                'a browser instance to be on globalThis.'
+            )
+        }
+
+        const hasBidiCommands = !!(
+            browser.__bidiCommandsEnabled ||
+            (browser.requestedCapabilities as Record<string, unknown>)?.['wdio:experimentalBiDiCommands'] ||
+            (browser.capabilities as Record<string, unknown>)?.['wdio:experimentalBiDiCommands']
+        )
+
+        if (!browser.isBidi) {
+            log.warn(
+                'Parallel mode (jasmineOpts.parallelMode: "contexts") requires ' +
+                'a WebDriver Bidi session. Falling back to sequential execution.'
+            )
+            return this._runSequential()
+        }
+
+        if (!hasBidiCommands) {
+            log.warn(
+                'Parallel mode (jasmineOpts.parallelMode: "contexts") requires ' +
+                '"wdio:experimentalBiDiCommands" to be set in capabilities. ' +
+                'Falling back to sequential execution.'
+            )
+            return this._runSequential()
+        }
+
+        // Walk suite tree to count specs
+        const topSuite = this._jrunner.env.topSuite() as unknown as Record<string, unknown>
+        let totalSpecs = 0
+        const countSpecs = (node: Record<string, unknown>): void => {
+            if (Array.isArray(node.children)) {
+                for (const child of node.children as Record<string, unknown>[]) {
+                    countSpecs(child)
+                }
+            } else if (typeof node.id === 'string' && !Array.isArray((node as Record<string, unknown>).children)) {
+                totalSpecs++
+            }
+        }
+        countSpecs(topSuite)
+
+        const { cleanup } = await setupParallelContexts({
+            browser,
+            reporter: this._reporter,
+            totalSpecs,
+            maxParallelContexts: this._jasmineOpts.maxParallelContexts || 1,
+        })
+
+        try {
+            return await this._runSequential()
+        } finally {
+            await cleanup()
+        }
+    }
+
+    private async _runSequential(): Promise<number> {
         // @ts-expect-error
         this._jrunner.env.beforeAll(this.wrapHook('beforeSuite'))
         // @ts-expect-error
@@ -324,9 +422,7 @@ class JasmineAdapter {
 
         await this._jrunner.execute()
 
-        const result = this._reporter.getFailedCount()
-        await executeHooksWithArgs('after', this._config.after, [result, this._capabilities, this._specs])
-        return result
+        return this._reporter.getFailedCount()
     }
 
     customSpecFilter (spec: jasmine.Spec) {

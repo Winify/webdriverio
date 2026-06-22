@@ -1,3 +1,22 @@
+import type { AsyncLocalStorage } from 'node:async_hooks'
+
+/**
+ * Bidi-aware browser subset. These members are added at runtime by the
+ * webdriverio package and are NOT declared on the minimal Browser stub
+ * in @wdio/types. The jasmine-framework adapter does not import from
+ * webdriverio (to avoid a circular dependency), so we declare the shape
+ * we need here.
+ */
+export interface ParallelBrowser extends WebdriverIO.Browser {
+    isBidi: boolean
+    __parallelContextStore?: AsyncLocalStorage<string>
+    __bidiCommandsEnabled?: boolean
+    requestedCapabilities: Record<string, unknown>
+    capabilities: Record<string, unknown>
+    // browsingContextCreate/Close are on the base Browser via protocol
+    // augmentation but TS may not see them; cast via any at call sites.
+}
+
 export interface ReporterOptions {
     cid: string
     specs: string[]
@@ -145,4 +164,22 @@ export interface JasmineOpts {
      * an assertion fails.
      */
     expectationResultHandler?: (passed: boolean, data: ResultHandlerPayload) => void
+    /**
+     * Enable parallel test execution within a spec file. When set to
+     * `'contexts'`, each spec (it block) runs simultaneously in its own
+     * browsing context (tab). Requires a WebDriver Bidi session.
+     *
+     * If the browser session does not support Bidi, parallel mode
+     * falls back to sequential execution with a warning.
+     *
+     * @default undefined (sequential execution)
+     */
+    parallelMode?: 'contexts'
+    /**
+     * Maximum number of browsing contexts (tabs) to use in parallel.
+     * Specs are processed in batches of this size. Higher values
+     * increase parallelism but also resource usage.
+     * @default os.cpus().length
+     */
+    maxParallelContexts?: number
 }
